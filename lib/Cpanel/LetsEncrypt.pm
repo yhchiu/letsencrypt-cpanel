@@ -60,19 +60,24 @@ sub activate_ssl_certificate {
 
     if ( $self->has_active_ssl_cert ) {
         $return_vars->{'message'} =
-            "The domain $self->{domain} is already having an active ssl certificate";
+            "The domain $self->{domain} already has an active SSL certificate";
         return $return_vars;
     }
 
     my $json_resp = $self->{whm}->get_domain_userdata( $self->{domain} );
 
-    my $aliases = $json_resp->{serveralias};
-    $aliases =~ s/\s+/\,/g;
+    my $domains;
+    if (defined $self->{aliases}) { 
+        $domains =  "$self->{domain}, $self->{aliases}";
+    }
+    else {
+        $domains = $self->{domain};
+    }
 
     my $hash = {
         'webroot-path' => $json_resp->{documentroot},
         'ip_address'   => $json_resp->{ip},
-        'domains'      => "$self->{domain}, $aliases",
+        'domains'      => $domains,
         'domain'       => $self->{domain},
         'username'     => $json_resp->{user},
     };
@@ -90,12 +95,12 @@ sub activate_ssl_certificate {
         $return_vars->{'message'} =
               $message
             ? $message
-            : "cPanel SSL installation failed, please check the log file for more info";
+            : "cPanel SSL certificate installation failed, please check the log file for more info";
         return $return_vars;
     }
 
     $return_vars->{'status'}  = '1';
-    $return_vars->{'message'} = 'Successfully installed ssl certificate';
+    $return_vars->{'message'} = 'Successfully installed SSL certificate';
 
     return $return_vars;
 }
@@ -110,21 +115,21 @@ sub renew_ssl_certificate {
         return $return_vars;
     }
 
-    my $expired_domains = $self->{whm}->get_expired_domains();
+    my $json_resp = $self->{whm}->get_domain_userdata( $self->{domain} );
+    my $ssl_enabled_aliases = $self->{whm}->get_ssl_vhost_by_domain($self->{domain})->{'domains'};
 
-    if ( !grep /^$self->{'domain'}/i, @{$expired_domains} ) {
-        $return_vars->{'message'} = "Could not find the domain in expired list";
-        return $return_vars;
+    my $domains;
+    if (scalar $ssl_enabled_aliases) {
+        $domains  = join(',', @$ssl_enabled_aliases);
+    }
+    else {
+        $domains = $self->{domain};
     }
 
-    my $hash;
-    my $json_resp = $self->{whm}->get_domain_userdata( $self->{domain} );
-    my $aliases   = $json_resp->{serveralias};
-    $aliases =~ s/\s+/\,/g;
-    $hash = {
+    my $hash = {
         'webroot-path' => $json_resp->{documentroot},
         'ip_address'   => $json_resp->{ip},
-        'domains'      => "$self->{domain}, $aliases",
+        'domains'      => $domains,
         'domain'       => $self->{domain},
         'username'     => $json_resp->{user},
     };
@@ -146,7 +151,7 @@ sub renew_ssl_certificate {
     }
 
     $return_vars->{'status'} = '1';
-    $return_vars->{'message'} = $message ? $message : 'Successfully installed ssl certificate';
+    $return_vars->{'message'} = $message ? $message : 'Successfully installed SSL certificate';
 
     return $return_vars;
 }

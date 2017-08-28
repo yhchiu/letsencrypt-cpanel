@@ -1,5 +1,4 @@
-## letsencrypt-cpanel
-[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=Z22KP32ZCH8D6)
+## letsencrypt-cpanel 
 
 This is a cPanel/WHM plugin for the [Let's Encrypt](https://letsencrypt.org/) client. This plugin uses Perl and the WHM API, and requires a server running cPanel and WHM on it.
 
@@ -33,16 +32,6 @@ cd letsencrypt-cpanel
 ./upgrade.sh
 ```
 
-### Errors
-
-`403 error: Authorizations for these names not found or expired`
-
-Let's Encrypt verifies domains via http using the pathname `.well-known` and the subfolder `acme-challenge`, if there are any rules in `.htaccess` that redirect this folder to https (or elsewhere) the verification will fail. To exclude rewrites for the `.well-known` folder place the following line to `.htaccess` in your **document root** directly under `RewriteEngine On`:
-
-```RewriteRule ^.well-known(.*)$ - [L,NC]```
-
-If the `.well-known` folder is requested (by Let's Encrypt) it doesn't process further rules and avoids any SSL redirection that happens below it.
-
 ### Uninstall
 	
 ```
@@ -50,3 +39,38 @@ cd letsencrypt-cpanel
 ./uninstall.sh
 ```
 
+## Troubleshooting
+
+### Status: 400, Detail: DNS name does not have enough labels, Type: urn:acme:error:malformed
+
+Some OpenVZ VPS providers don't let hostname survive a reboot the way it needs to. Start by seeing how your hostname is formatted for your system like this:
+
+```
+hostname
+```
+
+If you see `sub` instead of `sub.yourdomain.com`, then it's formatted incorrectly. To fix the issue, you can do the following to correct the hostname, lock down permissions, then reboot the system:
+
+```
+hostnamectl set-hostname sub.yourdomain.com
+chattr +i /etc/hostname
+reboot
+```
+
+`chattr` will ensure that even root cannot write to the file to change it. Even on reboot.
+
+If for some reason you want to modify the file again in the future, you can do this:
+
+```
+chattr -i /etc/hostname
+```
+
+### 403 error: Authorizations for these names not found or expired
+
+Let's Encrypt verifies domains via http using the pathname `.well-known` and the subfolder `acme-challenge`, if there are any rules in `.htaccess` that redirect this folder to https (or elsewhere) the verification will fail. To exclude rewrites for the `.well-known` folder place the following line to `.htaccess` in your **document root** directly under `RewriteEngine On`:
+
+```
+RewriteRule ^.well-known(.*)$ - [L,NC]
+```
+
+If the `.well-known` folder is requested (by Let's Encrypt) it doesn't process further rules and avoids any SSL redirection that happens below it.
